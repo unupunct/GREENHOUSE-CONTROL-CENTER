@@ -1,0 +1,14 @@
+# Optional. NOT TESTED. Serial/I2C/GPIO hardware needs device passthrough and extra privileges that depend on your Pi.
+services:
+  greenhouse:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8000:8000"          # plain HTTP: private network only, or put a TLS reverse proxy in front (docs/SECURITY.md)
+    volumes:
+      - ./data:/data         # database, backups, setup code
+    environment:
+      GCC_SIMULATE: "false"
+    # devices:                # uncomment what you use; group access (dialout/i2c) must also be granted to the container user
+    #   - /dev/ttyUSB0:/dev/ttyUSB0
+    #   - /dev/i2c-1:/dev/i2c-1

@@ -1,0 +1,1 @@
+"""Personalised installation manual generator."""

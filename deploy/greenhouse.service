@@ -1,0 +1,23 @@
+[Unit]
+Description=Greenhouse Control Center
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=greenhouse
+Group=greenhouse
+SupplementaryGroups=dialout i2c gpio
+WorkingDirectory=/opt/greenhouse/backend
+Environment=GCC_DATA_DIR=/var/lib/greenhouse
+Environment=GCC_SIMULATE=false
+ExecStart=/opt/greenhouse/backend/.venv/bin/python -m uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+StateDirectory=greenhouse
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

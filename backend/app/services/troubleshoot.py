@@ -1,0 +1,92 @@
+"""Plain-English explanations of the errors this application actually produces."""
+
+from __future__ import annotations
+
+import re
+
+# (id, regex, title, plain meaning, likely causes, what to check, docs)
+_R = [
+    ("modbus_timeout", r"no/partial response|fake timeout|ModbusTimeout", "The RS485 device did not answer",
+     "The controller sent a request but nothing (or only part of a reply) came back.",
+     ["Wrong slave address", "Baud rate or parity differs from the device", "A and B wires swapped", "Device unpowered", "Missing termination on a long line"],
+     ["Check the device LED/power", "Confirm baud, parity and address in the device manual", "Swap A/B", "Use Hardware → Scan on a small address range"], "MODBUS_SETUP.md"),
+    ("modbus_crc", r"CRC mismatch", "Garbled reply from the RS485 bus",
+     "A reply arrived but failed its checksum, so it cannot be trusted.",
+     ["Electrical noise", "Wrong baud/parity", "Two devices with the same address answering together", "Missing or double termination"],
+     ["Check shielding and cable routing away from mains", "Make every slave address unique", "Terminate only the two ends"], "MODBUS_SETUP.md"),
+    ("modbus_exception", r"Modbus exception (\d)", "The device is there but refused the request",
+     "The device answered with an error code, so wiring is fine but the request is wrong.",
+     ["Register does not exist (exception 2: check 0-based vs 1-based numbering)", "Wrong function code (exception 1: try 3 vs 4)", "Device busy (exception 6)"],
+     ["Re-read the register map in the datasheet", "Try function 3 or 4"], "MODBUS_SETUP.md"),
+    ("port_open", r"cannot open (/dev/|COM)|could not open port|Permission denied.*tty", "The serial port could not be opened",
+     "The USB-RS485 adapter is missing, has a different name, or the program has no permission.",
+     ["Adapter not plugged in or reset", "Wrong port name in the bus settings", "User not in the 'dialout' group"],
+     ["Check the port list in Hardware", "sudo usermod -aG dialout <user> and restart the service"], "MODBUS_SETUP.md"),
+    ("bus_unconfigured", r"bus '.+' is not configured", "The sensor points at a bus that does not exist",
+     "The sensor's address names an RS485 bus that has not been defined.", ["Bus deleted or misspelled"], ["Add the bus in Hardware or fix the sensor's address"], "SENSOR_GUIDE.md"),
+    ("serial_error", r"serial error on bus", "Serial communication failed",
+     "The port opened but reading or writing failed; the port is reopened on the next try.", ["Adapter unplugged", "USB glitch", "Cable fault"], ["Check the USB cable and adapter", "Look for USB resets in the system log"], "MODBUS_SETUP.md"),
+    ("ds18b20_crc", r"DS18B20 CRC", "The temperature probe's data is corrupted",
+     "The 1-Wire reading failed its checksum.", ["Missing 4.7 kΩ pull-up", "Cable too long or damaged", "Loose connector", "Weak supply"], ["Check pull-up and wiring", "Shorten the cable or use an RS485 probe"], "SENSOR_GUIDE.md"),
+    ("ds18b20_85", r"85\.0 C|power-on value", "The probe returned its power-on value (85 °C)",
+     "The DS18B20 had not finished a measurement, usually a power problem.", ["Supply dips", "Pull-up missing", "Parasite power in use"], ["Power the probe from 3.3 V with a proper pull-up"], "SENSOR_GUIDE.md"),
+    ("w1_missing", r"cannot read .*w1_slave", "The 1-Wire device is not visible",
+     "The system does not list this probe.", ["1-Wire not enabled", "Wrong device ID", "Probe disconnected"], ["Enable the w1-gpio overlay and reboot", "List devices in Hardware"], "SENSOR_GUIDE.md"),
+    ("sht_crc", r"SHT3x CRC", "The humidity sensor's data is corrupted",
+     "An I2C reading failed its checksum.", ["Cable too long", "Missing pull-ups", "Loose wiring", "Wrong supply voltage"], ["Keep I2C cables short", "Check SDA/SCL"], "SENSOR_GUIDE.md"),
+    ("i2c_error", r"I2C error|cannot open I2C bus", "The I2C bus could not be used",
+     "The device did not respond or the bus is unavailable.", ["I2C disabled", "Wrong address (0x44/0x45)", "Wiring"], ["sudo raspi-config nonint do_i2c 0", "Run i2cdetect -y 1"], "SENSOR_GUIDE.md"),
+    ("out_of_range", r"outside valid range", "A reading was rejected as impossible",
+     "The value was outside the sensor's valid range, so it is treated as a fault and not stored.",
+     ["Sensor fault or wrong scaling", "Calibration entered wrongly", "Valid range set too tight"], ["Test-read the sensor", "Check scale/offset and calibration", "Adjust min/max if the range is wrong"], "CALIBRATION_GUIDE.md"),
+    ("gpio_error", r"GPIO \d+:", "A GPIO pin could not be used",
+     "The Raspberry Pi library failed to access the pin.", ["gpiozero/lgpio not installed", "Pin in use by another function", "Not running on a Raspberry Pi"], ["Check the pin and installation notes"], "IRRIGATION_GUIDE.md"),
+    ("tank_low", r"tank level .*below the minimum|reports low water", "The water tank is too low to pump",
+     "The software refused or stopped the pump to protect it from running dry.", ["Tank empty", "Level sensor reading wrong", "Minimum level set too high"], ["Refill the tank and check the sensor", "Check the minimum level"], "IRRIGATION_GUIDE.md"),
+    ("tank_no_reading", r"no fresh reading|has no fresh reading", "A safety sensor has no current reading",
+     "The system stops outputs when it cannot see a sensor it relies on.", ["Sensor offline", "Wiring or bus problem", "Sensor disabled"], ["Open Hardware and Test the sensor", "Fix the communication problem"], "TROUBLESHOOTING.md"),
+    ("tank_unassigned", r"no water source|no level or float", "A pump zone has no water-level protection",
+     "Zones with a pump must name a tank with a level or float sensor.", ["Zone or tank not fully set up"], ["Assign a tank with a sensor"], "IRRIGATION_GUIDE.md"),
+    ("dead_head", r"dead-head", "The pump would run against closed valves",
+     "A pump may only start while one of its valves is open.", ["Valve not open yet", "Pump assigned to the wrong zones"], ["Open a valve first or run the zone instead"], "IRRIGATION_GUIDE.md"),
+    ("dry_run", r"dry run or blockage", "Flow is too low",
+     "The pump was running but the flow sensor saw much less than your minimum.", ["Empty tank or air in the pump", "Blocked filter or valve", "Flow limit set too high"], ["Check the tank, filter and valves", "Check the flow sensor"], "IRRIGATION_GUIDE.md"),
+    ("burst", r"leak or burst", "Flow is too high",
+     "Flow exceeded your maximum limit, so the zone was stopped.", ["Burst or disconnected pipe", "Maximum set too low"], ["Inspect pipes and fittings"], "IRRIGATION_GUIDE.md"),
+    ("max_runtime", r"maximum runtime|max_runtime|maximum on-time", "An output hit its safety time limit",
+     "Every output has a hard limit on how long it may stay on. It was switched off at the limit.", ["Rule or run asked for longer than the limit", "Limit set too short"], ["Raise the limit if it is legitimate (lighting needs the full photoperiod)", "Look at what kept asking for the output"], "VENTILATION_GUIDE.md"),
+    ("estop", r"emergency stop", "The emergency stop is latched",
+     "Everything is off and nothing can start until the stop is reset.", ["Someone pressed the software e-stop", "The latch was restored after a restart"], ["Find the cause first, then reset with confirmation"], "SAFETY.md"),
+    ("output_error", r"Cannot switch '.+' on", "An output refused to switch on",
+     "The driver reported an error, so the run was aborted.", ["Relay board offline", "Bus problem", "GPIO unavailable"], ["Check the driver's wiring and power", "Test the output manually"], "TROUBLESHOOTING.md"),
+    ("output_stuck", r"Cannot switch '.+' OFF|output_stuck", "An output could not be switched OFF",
+     "The controller could not confirm the output is off. The software keeps retrying. This is dangerous for pumps and heaters.", ["Relay board offline", "Welded relay", "Bus failure"], ["Cut power at the hardware (e-stop or breaker) if it is running", "Fix the communication fault"], "SAFETY.md"),
+    ("safety_limit", r"safety limit exceeded|safety sensor", "A software safety limit stopped a heater or CO2 output",
+     "The measured value passed the limit you set (or the safety sensor stopped reporting).", ["Real over-temperature", "Sensor fault", "Limit set too low"], ["Check the equipment and the sensor"], "VENTILATION_GUIDE.md"),
+    ("interlock", r"requires .+ to be on|not allowed while|cooling down after|minimum off time|a window is open", "An equipment interlock blocked an output",
+     "A rule wanted the output on, but a protective rule you configured says not yet.", ["Required fan not on", "Conflicting heater/cooler", "Short-cycle protection", "Window open"], ["Read the reason shown on the Climate page"], "VENTILATION_GUIDE.md"),
+    ("window_hazard", r"closing: (rain|wind)|rain sensor|wind sensor", "A vent is closing for weather",
+     "Rain or high wind (or a silent weather sensor) closes vents to protect the crop and structure.", ["Rain/wind detected", "Weather sensor offline"], ["Check the weather sensors"], "VENTILATION_GUIDE.md"),
+    ("leak", r"possible leak|leak_suspected", "Water is flowing while everything is off",
+     "The flow sensor sees water although no pump or valve is on.", ["Leaking valve or pipe", "Flow sensor noise"], ["Inspect for leaks; check the flow sensor zero"], "IRRIGATION_GUIDE.md"),
+    ("gate", r"commissioning checks have not all passed", "Automatic control is waiting for commissioning",
+     "Schedules and rules only run after every applicable safety check passed.", ["Checks not done or invalidated by a configuration change"], ["Open the commissioning checklist and complete it"], "IRRIGATION_GUIDE.md"),
+    ("auto_off", r"automatic .* (is )?switched off|monitor only", "Automatic control is switched off",
+     "Rules/schedules do not run while the master switch is off or the automation level is 'monitor only'.", ["Master switch off", "Automation level"], ["Enable it on the Irrigation/Climate page when ready"], "IRRIGATION_GUIDE.md"),
+    ("database", r"database error|integrity", "A database problem was detected",
+     "The data file may be damaged or unwritable.", ["Disk full", "Power loss during a write", "Failing storage"], ["Check free space and storage health", "Restore from a backup if needed"], "INSTALLATION.md"),
+    ("maintenance", r"Maintenance overdue", "A maintenance task is overdue",
+     "A task you scheduled has passed its due date.", ["Not yet done"], ["Do it and mark it done on the Maintenance page"], "MAINTENANCE.md"),
+    ("health", r"system clock|disk space|CPU temperature|memory", "The computer itself needs attention",
+     "A host health threshold was crossed.", ["Disk filling up", "Overheating", "Clock not synchronised"], ["See the health page for details"], "MAINTENANCE.md"),
+]
+PATTERNS = [(i, re.compile(p, re.I), *rest) for i, p, *rest in _R]
+
+
+def explain(text: str) -> dict:
+    for pid, rx, title, plain, causes, checks, doc in PATTERNS:
+        if rx.search(text or ""):
+            return {"matched": True, "id": pid, "title": title, "plain": plain, "likely_causes": causes, "what_to_check": checks, "docs": doc, "original": text}
+    return {"matched": False, "id": None, "title": "Not recognised",
+            "plain": "This message is not one the assistant knows. It is shown as received.", "likely_causes": [],
+            "what_to_check": ["Search TROUBLESHOOTING.md", "Check the event log around the same time"], "docs": "TROUBLESHOOTING.md", "original": text}
