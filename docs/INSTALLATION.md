@@ -19,12 +19,14 @@ Check SSH is allowed *before* enabling, or you will lock yourself out.
 
 ## Option 0: release archive (recommended on a Raspberry Pi)
 
+Short version: a [one-line install for ParrotOS/Debian/Ubuntu/Raspberry Pi OS and Windows](ONE_LINE_INSTALL.md) does the steps below for you.
+
 The release archive contains the backend, the **prebuilt** web interface, deploy files and docs, so the Pi needs no Node.js:
 
 ```bash
-wget https://github.com/unupunct/GREENHOUSE-CONTROL-CENTER/releases/download/v0.9.0/greenhouse-control-center-0.9.0.tar.gz
-tar xzf greenhouse-control-center-0.9.0.tar.gz
-cd greenhouse-control-center-0.9.0
+wget https://github.com/unupunct/GREENHOUSE-CONTROL-CENTER/releases/download/v0.9.1/greenhouse-control-center-0.9.1.tar.gz
+tar xzf greenhouse-control-center-0.9.1.tar.gz
+cd greenhouse-control-center-0.9.1
 sudo ./deploy/install.sh
 ```
 

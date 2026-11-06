@@ -17,12 +17,15 @@ ROOT = Path(__file__).resolve().parents[1]
 version = re.search(r'__version__ = "([^"]+)"', (ROOT / "backend" / "app" / "__init__.py").read_text()).group(1)
 if not (ROOT / "frontend" / "dist" / "index.html").exists():
     sys.exit("frontend/dist is missing: run `npm run build` in frontend/ first")
+for installer in ("get.sh", "install.ps1"):  # the one-line installers pin the release they download
+    if f"{version}" not in (ROOT / installer).read_text():
+        sys.exit(f"{installer} does not mention version {version}: update its default version first")
 name = f"greenhouse-control-center-{version}"
 out = ROOT / "dist-release"
 out.mkdir(exist_ok=True)
 target = out / f"{name}.tar.gz"
 include = [("backend/app", True), ("backend/requirements.txt", False), ("backend/requirements.lock", False), ("backend/requirements-dev.txt", False),
-           ("frontend/dist", True), ("deploy", True), ("docs", True), ("scripts", True), ("README.md", False)]
+           ("frontend/dist", True), ("deploy", True), ("docs", True), ("scripts", True), ("README.md", False), ("LICENSE", False), ("get.sh", False), ("install.ps1", False)]
 skip = ("__pycache__", ".pyc", ".pytest_cache")
 with tarfile.open(target, "w:gz") as tar:
     for rel, _ in include:
@@ -32,7 +35,7 @@ with tarfile.open(target, "w:gz") as tar:
                 info = tar.gettarinfo(str(f), arcname=f"{name}/{f.relative_to(ROOT).as_posix()}")
                 info.uid = info.gid = 0
                 info.uname = info.gname = "root"
-                if f.suffix in (".sh",) or f.name == "install.sh":
+                if f.suffix == ".sh" or f.name == "install.sh":
                     info.mode = 0o755
                 data = f.read_bytes()
                 if f.suffix in (".sh", ".service", ".py", ".md", ".txt", ".lock", ".ps1", ".json", ".html", ".css", ".js", ".ts", ".tsx") or f.name in ("install.sh",):

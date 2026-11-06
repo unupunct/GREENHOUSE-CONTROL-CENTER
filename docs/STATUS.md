@@ -4,7 +4,7 @@ All 8 phases are complete. This file records what is implemented, what is verifi
 
 Only features listed under "Implemented and tested" should be treated as working.
 
-## Pre-release audit (v0.9.0)
+## Pre-release audit (v0.9.1)
 
 A final review before publication found and fixed: lint leftovers; the API documentation endpoints being reachable without sign-in (now off by default); an unbounded login rate-limiter map; unbounded growth of the event, audit and resolved-alert tables (now pruned after 365 days); missing GPIO libraries in the installer; the time zone not being surfaced (health page and setup commands now cover it); a misleading "MQTT broker" label in the architecture diagram; development-phase wording in user-facing text; chart axis labels that collapsed on flat data. Added deep links (`#/page`), a pinned `requirements.lock`, `scripts/soak_test.py`, a release-archive builder and `docs/PRODUCTION_READINESS.md` (verdict: supervised pilot, not unattended automatic control). 284 tests pass.
 

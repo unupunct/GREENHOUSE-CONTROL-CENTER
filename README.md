@@ -2,7 +2,7 @@
 
 **Local-first greenhouse monitoring, irrigation and climate automation for Raspberry Pi.** Read sensors over Modbus/RS485, I2C and 1-Wire, run irrigation, ventilation, heating and lighting behind safety interlocks, plan and buy the hardware, and get a personalised installation manual, maintenance schedule, backups and a troubleshooting assistant. Everything runs on your own network; no cloud service is needed. Built around a 10 m x 20 m (200 m²) greenhouse in Romania growing in soil and hydroponics, with prices in RON, but sizing adapts to any greenhouse.
 
-> ⚠️ **Pre-release (v0.9.0): the logic is thoroughly tested, the hardware is not.** 284 automated tests pass against simulated and emulated sensors, outputs and buses, and the program survives hard kills and restarts. But **no real sensor, relay, pump, valve or motor has ever been driven by this code, and it has not run on a Raspberry Pi.** Use it for a supervised pilot, keep independent hardware protections, and read [Production readiness](docs/PRODUCTION_READINESS.md) before letting it control anything unattended. Mains wiring must be done by a qualified electrician.
+> ⚠️ **Pre-release (v0.9.1): the logic is thoroughly tested, the hardware is not.** 284 automated tests pass against simulated and emulated sensors, outputs and buses, and the program survives hard kills and restarts. But **no real sensor, relay, pump, valve or motor has ever been driven by this code, and it has not run on a Raspberry Pi.** Use it for a supervised pilot, keep independent hardware protections, and read [Production readiness](docs/PRODUCTION_READINESS.md) before letting it control anything unattended. Mains wiring must be done by a qualified electrician.
 
 ![Dashboard](docs/screenshots/dashboard.png)
 
@@ -33,12 +33,32 @@
 
 Requirements: a Raspberry Pi 4 or 5 (4 GB) with Raspberry Pi OS 64-bit (or any computer with Python 3.11+ for trying it out).
 
-**On a Raspberry Pi (recommended: release archive, no Node needed).** Prepare the Pi first ([Raspberry Pi setup](docs/RASPBERRY_PI_SETUP.md): OS, SSH, fixed address, **time zone**, I2C/1-Wire), then:
+**One line, ParrotOS / Debian / Ubuntu / Raspberry Pi OS** (installs a systemd service; full details, options and status in [One-line install](docs/ONE_LINE_INSTALL.md)):
 
 ```bash
-wget https://github.com/unupunct/GREENHOUSE-CONTROL-CENTER/releases/download/v0.9.0/greenhouse-control-center-0.9.0.tar.gz
-tar xzf greenhouse-control-center-0.9.0.tar.gz
-cd greenhouse-control-center-0.9.0
+curl -fsSL https://raw.githubusercontent.com/unupunct/GREENHOUSE-CONTROL-CENTER/main/get.sh | sudo bash
+```
+
+Then add the **desktop shortcut** (as your normal user, not sudo):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/unupunct/GREENHOUSE-CONTROL-CENTER/main/deploy/add-desktop-shortcut.sh | bash
+```
+
+**One line, Windows 10/11** (PowerShell, needs Python 3.11+; creates Desktop and Start-menu shortcuts):
+
+```powershell
+irm https://raw.githubusercontent.com/unupunct/GREENHOUSE-CONTROL-CENTER/main/install.ps1 | iex
+```
+
+*The Windows installer is tested on Windows 11; the Linux one is syntax-checked but not yet run on ParrotOS or a Pi.* Add `--local-only` / `--demo` (Linux) or `-Demo` / `-Network` (Windows), see the page above.
+
+**On a Raspberry Pi, manually from the release archive (no Node needed).** Prepare the Pi first ([Raspberry Pi setup](docs/RASPBERRY_PI_SETUP.md): OS, SSH, fixed address, **time zone**, I2C/1-Wire), then:
+
+```bash
+wget https://github.com/unupunct/GREENHOUSE-CONTROL-CENTER/releases/download/v0.9.1/greenhouse-control-center-0.9.1.tar.gz
+tar xzf greenhouse-control-center-0.9.1.tar.gz
+cd greenhouse-control-center-0.9.1
 sudo ./deploy/install.sh
 ```
 
@@ -97,7 +117,7 @@ The complete order of work, from planning to going live, is in **[docs/SETUP_GUI
 | | |
 |---|---|
 | Start here | [Setup guide](docs/SETUP_GUIDE.md) · [Production readiness](docs/PRODUCTION_READINESS.md) · [Status and gaps](docs/STATUS.md) · [Safety](docs/SAFETY.md) · [Security](docs/SECURITY.md) · [Architecture](docs/ARCHITECTURE.md) |
-| Install | [Raspberry Pi setup](docs/RASPBERRY_PI_SETUP.md) · [Installation](docs/INSTALLATION.md) · [Backup and restore](docs/BACKUP_RESTORE.md) |
+| Install | [One-line install](docs/ONE_LINE_INSTALL.md) · [Raspberry Pi setup](docs/RASPBERRY_PI_SETUP.md) · [Installation](docs/INSTALLATION.md) · [Backup and restore](docs/BACKUP_RESTORE.md) |
 | Hardware | [Hardware list](docs/HARDWARE_LIST.md) · [Hardware guide](docs/HARDWARE_GUIDE.md) · [Sensors](docs/SENSOR_GUIDE.md) · [Modbus/RS485](docs/MODBUS_SETUP.md) · [Wiring](docs/WIRING_GUIDE.md) · [ESP32 (not implemented)](docs/ESP32_SETUP.md) |
 | Operate | [Irrigation](docs/IRRIGATION_GUIDE.md) · [Ventilation, heating, lighting](docs/VENTILATION_GUIDE.md) · [Calibration](docs/CALIBRATION_GUIDE.md) · [Plants, analytics, map](docs/KNOWLEDGEBASE_AND_ANALYTICS.md) |
 | Maintain | [Maintenance](docs/MAINTENANCE.md) · [Troubleshooting](docs/TROUBLESHOOTING.md) |

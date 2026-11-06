@@ -1,4 +1,4 @@
-# Production readiness assessment (v0.9.0)
+# Production readiness assessment (v0.9.1)
 
 **Verdict: ready for a supervised pilot, not yet for unattended automatic control.**
 
