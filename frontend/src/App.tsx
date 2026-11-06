@@ -1,126 +1,186 @@
-import { useEffect, useState } from "react";
-import { usePoll, type Alert } from "./api";
+import { useEffect, useState, type ReactNode } from "react";
+import { api, usePoll, type Alert } from "./api";
+import { Icon, Logo } from "./icons";
+import { PAGE_DEFS, isPage, visibleGroups, type Page } from "./nav";
 import AdminPage from "./pages/AdminPage";
+import AnalyticsPage from "./pages/AnalyticsPage";
 import { AccountPanel, LoginPage, SetupPage } from "./pages/AuthPages";
-import Dashboard from "./pages/Dashboard";
+import ClimatePage from "./pages/ClimatePage";
 import ConfigPage from "./pages/ConfigPage";
-import SystemPage from "./pages/SystemPage";
-import HardwarePage from "./pages/HardwarePage";
+import Dashboard from "./pages/Dashboard";
+import DesignerPage from "./pages/DesignerPage";
 import EncyclopediaPage from "./pages/EncyclopediaPage";
+import HardwarePage from "./pages/HardwarePage";
+import IrrigationPage from "./pages/IrrigationPage";
 import MaintenancePage from "./pages/MaintenancePage";
 import ManualPage from "./pages/ManualPage";
-import WizardPage from "./pages/WizardPage";
-import AnalyticsPage from "./pages/AnalyticsPage";
-import DesignerPage from "./pages/DesignerPage";
-import PlantsPage from "./pages/PlantsPage";
-import ClimatePage from "./pages/ClimatePage";
-import IrrigationPage from "./pages/IrrigationPage";
 import PlannerPage from "./pages/PlannerPage";
+import PlantsPage from "./pages/PlantsPage";
 import ShoppingPage from "./pages/ShoppingPage";
+import SystemPage from "./pages/SystemPage";
 import WiringPage from "./pages/WiringPage";
+import WizardPage from "./pages/WizardPage";
 
 type Mode = "basic" | "advanced";
 type Theme = "light" | "dark";
-type Page = "admin" | "dashboard" | "setup" | "maintenance" | "encyclopedia" | "manual" | "analytics" | "plants" | "designer" | "irrigation" | "climate" | "config" | "planner" | "shopping" | "wiring" | "hardware" | "system";
+type User = { username: string; role: string };
 
-const PAGES: Page[] = ["admin", "dashboard", "setup", "maintenance", "encyclopedia", "manual", "analytics", "plants", "designer", "irrigation", "climate", "config", "planner", "shopping", "wiring", "hardware", "system"];
-
-/** "#/climate" opens a page; "#/wiring?mode=advanced" also picks the interface mode (handy for bookmarks and screenshots). */
-function fromHash(): { page: Page; mode: Mode | null } {
+/** "#/climate" opens a page; "#/wiring?mode=advanced&theme=light" also picks the interface mode and theme (handy for bookmarks and screenshots). */
+function fromHash(): { page: Page; mode: Mode | null; theme: Theme | null } {
   const [p, q] = window.location.hash.replace(/^#\/?/, "").split("?");
-  const m = new URLSearchParams(q ?? "").get("mode");
-  return { page: (PAGES as string[]).includes(p) ? (p as Page) : "dashboard", mode: m === "advanced" || m === "basic" ? m : null };
+  const params = new URLSearchParams(q ?? "");
+  const m = params.get("mode");
+  const t = params.get("theme");
+  return {
+    page: isPage(p) ? p : "dashboard",
+    mode: m === "advanced" || m === "basic" ? m : null,
+    theme: t === "light" || t === "dark" ? t : null,
+  };
 }
 
 function stored<T extends string>(key: string, fallback: T): T {
   try { return (localStorage.getItem(key) as T) || fallback; } catch { return fallback; }
 }
 
-function AppInner({ user, onAuth }: { user: { username: string; role: string }; onAuth: () => void }) {
-  const [menu, setMenu] = useState(false);
+const systemTheme = (): Theme => (window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+
+function renderPage(page: Page, mode: Mode, user: User, go: (p: string) => void): ReactNode {
+  const pages: Record<Page, () => ReactNode> = {
+    dashboard: () => <Dashboard mode={mode} />,
+    analytics: () => <AnalyticsPage />,
+    designer: () => <DesignerPage />,
+    irrigation: () => <IrrigationPage mode={mode} />,
+    climate: () => <ClimatePage mode={mode} />,
+    plants: () => <PlantsPage />,
+    config: () => <ConfigPage mode={mode} />,
+    setup: () => <WizardPage go={go} />,
+    planner: () => <PlannerPage />,
+    shopping: () => <ShoppingPage />,
+    wiring: () => <WiringPage />,
+    hardware: () => <HardwarePage />,
+    maintenance: () => <MaintenancePage />,
+    encyclopedia: () => <EncyclopediaPage />,
+    manual: () => <ManualPage />,
+    admin: () => <AdminPage me={user.username} />,
+    system: () => <SystemPage />,
+  };
+  return pages[page]();
+}
+
+function AlertBanner({ a }: { a: Alert }) {
+  return (
+    <div className={`banner ${a.severity}`} role="alert">
+      <Icon name="alert" size={16} />
+      <span className="grow">{a.message}</span>
+      {a.code !== "sensor_fault" && (
+        <button className="pill small" onClick={() => void api.post(`/api/alerts/${a.id}/clear`).catch(() => undefined)}>Clear</button>
+      )}
+    </div>
+  );
+}
+
+function AppInner({ user, onAuth }: { user: User; onAuth: () => void }) {
+  const [account, setAccount] = useState(false);
+  const [drawer, setDrawer] = useState(false);
   const [mode, setMode] = useState<Mode>(() => fromHash().mode ?? stored("gcc.mode", "basic"));
-  const [theme, setTheme] = useState<Theme>(() => stored("gcc.theme", "light"));
+  const [theme, setTheme] = useState<Theme>(() => fromHash().theme ?? stored("gcc.theme", systemTheme()));
   const [page, setPage] = useState<Page>(() => fromHash().page);
-  useEffect(() => {
-    const h = () => setPage(fromHash().page);
-    window.addEventListener("hashchange", h);
-    return () => window.removeEventListener("hashchange", h);
-  }, []);
   const [health] = usePoll<{ simulated: boolean; status: string; version: string }>("/api/health", 15000);
   const [alerts] = usePoll<Alert[]>("/api/alerts", 5000);
+
+  useEffect(() => {
+    const onHash = () => setPage(fromHash().page);
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     try { localStorage.setItem("gcc.theme", theme); localStorage.setItem("gcc.mode", mode); } catch { /* private mode */ }
   }, [theme, mode]);
 
-  const advancedOnly: Page[] = ["system", "hardware", "wiring"];
   const isAdmin = user.role === "admin";
-  const current: Page = advancedOnly.includes(page) && mode === "basic" ? "dashboard" : page;
-  const tabs: [Page, string][] = [["dashboard", "Dashboard"], ["setup", "Setup guide"], ["irrigation", "Irrigation"], ["climate", "Climate"], ["plants", "Plants"], ["analytics", "Analytics"], ["designer", "Map"], ["config", "Greenhouse"], ["planner", "Planner"], ["shopping", "Shopping"], ["maintenance", "Maintenance"], ["encyclopedia", "Encyclopedia"], ["manual", "Manual"], ...(isAdmin ? ([["admin", "Admin"]] as [Page, string][]) : []),
-    ...(mode === "advanced" ? ([["wiring", "Wiring"], ["hardware", "Hardware"], ["system", "System"]] as [Page, string][]) : [])];
+  const groups = visibleGroups(mode, isAdmin);
+  const allowed = groups.some(([, pages]) => pages.some((p) => p.id === page));
+  const current: Page = allowed ? page : "dashboard";
+  const title = PAGE_DEFS.find((p) => p.id === current)?.label ?? "";
+  const critical = alerts?.filter((a) => a.severity === "critical").length ?? 0;
+
+  const go = (target: string) => {
+    if (!isPage(target)) return;
+    setPage(target);
+    setDrawer(false);
+    window.location.hash = `/${target}`;
+  };
 
   return (
-    <div className="app">
-      <header className="top">
-        <div className="brand"><span className="leaf">🌿</span> Greenhouse Control Center</div>
+    <div className={`shell ${drawer ? "drawer-open" : ""}`}>
+      <aside className="sidebar" aria-label="Main navigation">
+        <div className="brand"><Logo /><span>Greenhouse<br />Control Center</span></div>
         <nav>
-          {tabs.map(([k, label]) => (
-            <button key={k} className={current === k ? "tab active" : "tab"} onClick={() => { setPage(k); window.location.hash = `/${k}`; }}>{label}</button>
+          {groups.map(([group, pages]) => (
+            <div className="nav-group" key={group}>
+              <div className="nav-title">{group}</div>
+              {pages.map((p) => (
+                <button key={p.id} className={current === p.id ? "nav-item active" : "nav-item"}
+                  aria-current={current === p.id ? "page" : undefined} onClick={() => go(p.id)}>
+                  <Icon name={p.icon} /><span>{p.label}</span>
+                </button>
+              ))}
+            </div>
           ))}
         </nav>
-        <div className="controls">
-          <button className="pill" onClick={() => setMode(mode === "basic" ? "advanced" : "basic")}
+        <div className="sidebar-foot">v{health?.version ?? "…"} · pre-release</div>
+      </aside>
+      {drawer && <div className="scrim" onClick={() => setDrawer(false)} />}
+
+      <div className="main-col">
+        <header className="topbar">
+          <button className="icon-btn menu-btn" aria-label="Open navigation" onClick={() => setDrawer(true)}><Icon name="menu" /></button>
+          <h1>{title}</h1>
+          <span className={`status ${critical ? "crit" : alerts?.length ? "warn" : "ok"}`}>
+            <i />{critical ? `${critical} critical` : alerts?.length ? `${alerts.length} alert${alerts.length > 1 ? "s" : ""}` : "All normal"}
+          </span>
+          <span className="grow" />
+          <div className="segmented" role="group" aria-label="Interface mode"
             title="Basic: simple readings. Advanced: hardware and technical data.">
-            {mode === "basic" ? "Basic mode" : "Advanced mode"}
-          </button>
-          <button className="pill" onClick={() => setMenu(!menu)} title="Account">👤 {user.username}</button>
-          <button className="pill" onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-            aria-label="Toggle theme">{theme === "light" ? "🌙" : "☀️"}</button>
+            {(["basic", "advanced"] as const).map((m) => (
+              <button key={m} className={mode === m ? "on" : ""} aria-pressed={mode === m} onClick={() => setMode(m)}>
+                {m === "basic" ? "Basic" : "Advanced"}
+              </button>
+            ))}
+          </div>
+          <button className="icon-btn" aria-label="Toggle theme" title="Toggle light/dark"
+            onClick={() => setTheme(theme === "light" ? "dark" : "light")}><Icon name={theme === "light" ? "moon" : "sun"} /></button>
+          <button className="pill account" onClick={() => setAccount(!account)} title="Account"><Icon name="user" size={16} /> {user.username}</button>
+        </header>
+
+        <div className="content">
+          {account && <AccountPanel user={user} onLogout={onAuth} />}
+          {health?.simulated && (
+            <div className="banner sim"><Icon name="alert" size={16} />Simulation mode: all values are generated, not measured. No hardware is connected.</div>
+          )}
+          {alerts?.map((a) => <AlertBanner key={a.id} a={a} />)}
+          <main>{renderPage(current, mode, user, go)}</main>
+          <footer>Pre-release: software interlocks are tested, hardware control is not yet tested on real equipment.</footer>
         </div>
-      </header>
-
-      {menu && <AccountPanel user={user} onLogout={onAuth} />}
-      {health?.simulated && (
-        <div className="banner sim">Simulation mode: all values are generated, not measured. No hardware is connected.</div>
-      )}
-      {alerts?.map((a) => (
-        <div key={a.id} className={`banner ${a.severity}`}>⚠ {a.message}
-          {a.code !== "sensor_fault" && <button className="pill" style={{ marginLeft: 8 }} onClick={() => fetch(`/api/alerts/${a.id}/clear`, { method: "POST" })}>Clear</button>}</div>
-      ))}
-
-      <main>
-        {current === "dashboard" && <Dashboard mode={mode} />}
-        {current === "admin" && isAdmin && <AdminPage me={user.username} />}
-        {current === "setup" && <WizardPage go={(p) => setPage(p as Page)} />}
-        {current === "maintenance" && <MaintenancePage />}
-        {current === "encyclopedia" && <EncyclopediaPage />}
-        {current === "manual" && <ManualPage />}
-        {current === "plants" && <PlantsPage />}
-        {current === "analytics" && <AnalyticsPage />}
-        {current === "designer" && <DesignerPage />}
-        {current === "climate" && <ClimatePage mode={mode} />}
-        {current === "irrigation" && <IrrigationPage mode={mode} />}
-        {current === "config" && <ConfigPage mode={mode} />}
-        {current === "planner" && <PlannerPage />}
-        {current === "shopping" && <ShoppingPage />}
-        {current === "wiring" && <WiringPage />}
-        {current === "hardware" && <HardwarePage />}
-        {current === "system" && <SystemPage />}
-      </main>
-      <footer>v{health?.version ?? "…"} · pre-release: software interlocks are tested, hardware control is not yet tested on real equipment</footer>
+      </div>
     </div>
   );
 }
 
+type AuthStatus = {
+  auth_required: boolean; setup_needed: boolean; authenticated: boolean;
+  user: User | null; password_min_length: number;
+};
+
 export default function App() {
-  const [auth, , reload] = usePoll<{ auth_required: boolean; setup_needed: boolean; authenticated: boolean; user: { username: string; role: string } | null; password_min_length: number }>("/api/auth/status", 0);
+  const [auth, , reload] = usePoll<AuthStatus>("/api/auth/status", 0);
   useEffect(() => {
-    const h = () => reload();
-    window.addEventListener("gcc-unauthorized", h);
-    return () => window.removeEventListener("gcc-unauthorized", h);
+    window.addEventListener("gcc-unauthorized", reload);
+    return () => window.removeEventListener("gcc-unauthorized", reload);
   }, [reload]);
-  if (!auth) return <p className="muted" style={{ padding: 24 }}>Loading…</p>;
+  if (!auth) return <p className="muted loading">Loading…</p>;
   if (auth.setup_needed) return <SetupPage minLength={auth.password_min_length} onDone={reload} />;
   if (!auth.authenticated || !auth.user) return <LoginPage onDone={reload} />;
   return <AppInner key={auth.user.username} user={auth.user} onAuth={reload} />;

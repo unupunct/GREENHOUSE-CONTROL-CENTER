@@ -24,9 +24,9 @@ Short version: a [one-line install for ParrotOS/Debian/Ubuntu/Raspberry Pi OS an
 The release archive contains the backend, the **prebuilt** web interface, deploy files and docs, so the Pi needs no Node.js:
 
 ```bash
-wget https://github.com/unupunct/GREENHOUSE-CONTROL-CENTER/releases/download/v0.9.1/greenhouse-control-center-0.9.1.tar.gz
-tar xzf greenhouse-control-center-0.9.1.tar.gz
-cd greenhouse-control-center-0.9.1
+wget https://github.com/unupunct/GREENHOUSE-CONTROL-CENTER/releases/download/v0.9.2/greenhouse-control-center-0.9.2.tar.gz
+tar xzf greenhouse-control-center-0.9.2.tar.gz
+cd greenhouse-control-center-0.9.2
 sudo ./deploy/install.sh
 ```
 

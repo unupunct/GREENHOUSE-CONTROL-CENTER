@@ -1,16 +1,19 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api, usePoll, type Point, type Sensor, type Vpd } from "../api";
+import { Icon, type IconName } from "../icons";
 import LineChart from "../LineChart";
-import { useEffect } from "react";
 
 const RANGES: [string, number][] = [["1 h", 1], ["6 h", 6], ["24 h", 24], ["7 d", 168]];
+const VPD = "__vpd";
+const BASIC_CHOICES: [string, string][] = [["gh_temp_1", "Temperature"], ["gh_rh_1", "Humidity"], [VPD, "VPD"], ["gh_co2_1", "CO₂"], ["soil_moist_1", "Soil moisture"]];
+const ADVANCED_CHOICES = (sensors: Sensor[]): [string, string][] => [[VPD, "VPD (calculated)"], ...sensors.map((s): [string, string] => [s.id, s.name])];
 
-function Tile({ label, value, unit, note, state }: {
-  label: string; value: string; unit?: string; note?: string; state?: string;
+function Tile({ label, icon, value, unit, note, state }: {
+  label: string; icon: IconName; value: string; unit?: string; note?: string; state?: string;
 }) {
   return (
     <div className={`tile ${state ?? ""}`}>
-      <div className="tile-label">{label}</div>
+      <div className="tile-label"><Icon name={icon} size={15} />{label}</div>
       <div className="tile-value">{value}<span className="unit">{unit}</span></div>
       {note && <div className="tile-note">{note}</div>}
     </div>
@@ -41,6 +44,8 @@ export default function Dashboard({ mode }: { mode: "basic" | "advanced" }) {
     return () => clearInterval(t);
   }, [sel, hours, useVpd]);
 
+  const pick = (id: string) => { setUseVpd(id === VPD); if (id !== VPD) setSel(id); };
+
   if (!sensors) return <p className="muted">Loading…</p>;
   const by = (zone: string, kind: string) => sensors.filter((s) => s.zone === zone && s.kind === kind);
   const find = (id: string) => sensors.find((s) => s.id === id);
@@ -50,15 +55,15 @@ export default function Dashboard({ mode }: { mode: "basic" | "advanced" }) {
   return (
     <>
       <section className="tiles">
-        <Tile label="Air temperature" value={fmt(mean(by("greenhouse", "temperature")))} unit="°C" />
-        <Tile label="Air humidity" value={fmt(mean(by("greenhouse", "humidity")), 0)} unit="%" />
-        <Tile label="VPD" value={vpd?.available ? vpd.vpd_kpa!.toFixed(2) : "–"} unit="kPa"
+        <Tile label="Air temperature" icon="thermometer" value={fmt(mean(by("greenhouse", "temperature")))} unit="°C" />
+        <Tile label="Air humidity" icon="droplet" value={fmt(mean(by("greenhouse", "humidity")), 0)} unit="%" />
+        <Tile label="VPD" icon="analytics" value={vpd?.available ? vpd.vpd_kpa!.toFixed(2) : "–"} unit="kPa"
           note="Leaf temp assumed = air temp" />
-        <Tile label="CO₂" value={fmt(mean(by("greenhouse", "co2")), 0)} unit="ppm" />
-        <Tile label="Soil moisture" value={fmt(mean(by("soil", "soil_moisture")), 0)} unit="%" />
-        <Tile label="Nutrient tank" value={fmt(mean(by("hydroponic", "water_level")), 0)} unit="%" />
-        <Tile label="Outdoor" value={fmt(mean(by("outdoor", "temperature")))} unit="°C" />
-        <Tile label="Sensors" value={stale ? `${stale} need attention` : "All OK"}
+        <Tile label="CO₂" icon="wind" value={fmt(mean(by("greenhouse", "co2")), 0)} unit="ppm" />
+        <Tile label="Soil moisture" icon="sprout" value={fmt(mean(by("soil", "soil_moisture")), 0)} unit="%" />
+        <Tile label="Nutrient tank" icon="droplet" value={fmt(mean(by("hydroponic", "water_level")), 0)} unit="%" />
+        <Tile label="Outdoor" icon="thermometer" value={fmt(mean(by("outdoor", "temperature")))} unit="°C" />
+        <Tile label="Sensors" icon="check" value={stale ? `${stale} need attention` : "All OK"}
           state={stale ? "warn" : "good"} />
       </section>
 
@@ -66,22 +71,9 @@ export default function Dashboard({ mode }: { mode: "basic" | "advanced" }) {
         <div className="card-head">
           <h2>History</h2>
           <div className="row">
-            {mode === "advanced" ? (
-              <select value={useVpd ? "__vpd" : sel}
-                onChange={(e) => e.target.value === "__vpd" ? setUseVpd(true) : (setUseVpd(false), setSel(e.target.value))}>
-                <option value="__vpd">VPD (calculated)</option>
-                {sensors.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            ) : (
-              <select value={useVpd ? "__vpd" : sel}
-                onChange={(e) => e.target.value === "__vpd" ? setUseVpd(true) : (setUseVpd(false), setSel(e.target.value))}>
-                <option value="gh_temp_1">Temperature</option>
-                <option value="gh_rh_1">Humidity</option>
-                <option value="__vpd">VPD</option>
-                <option value="gh_co2_1">CO₂</option>
-                <option value="soil_moist_1">Soil moisture</option>
-              </select>
-            )}
+            <select value={useVpd ? VPD : sel} onChange={(e) => pick(e.target.value)} aria-label="History source">
+              {(mode === "advanced" ? ADVANCED_CHOICES(sensors) : BASIC_CHOICES).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+            </select>
             {RANGES.map(([l, h]) => (
               <button key={h} className={hours === h ? "pill on" : "pill"} onClick={() => setHours(h)}>{l}</button>
             ))}

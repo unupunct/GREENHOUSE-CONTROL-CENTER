@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { api } from "../api";
+import { Logo } from "../icons";
 
 const errText = (e: unknown) => String(e).replace(/^Error: \d+ /, "").replace(/^\{"detail":"?|"?\}$/g, "");
 
 function Shell({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="app" style={{ maxWidth: 440, paddingTop: 48 }}>
-      <section className="card">
-        <h2>🌿 Greenhouse Control Center</h2>
+    <div className="auth-wrap">
+      <section className="card auth-card">
+        <div className="auth-brand"><Logo size={34} /> Greenhouse Control Center</div>
         <h3 style={{ marginTop: 0 }}>{title}</h3>
         {children}
       </section>

@@ -17,7 +17,7 @@ param([switch]$Demo, [switch]$Network)
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 $Repo = 'unupunct/GREENHOUSE-CONTROL-CENTER'
-$Version = if ($env:GCC_VERSION) { $env:GCC_VERSION } else { '0.9.1' }
+$Version = if ($env:GCC_VERSION) { $env:GCC_VERSION } else { '0.9.2' }
 $Dir = if ($env:GCC_INSTALL_DIR) { $env:GCC_INSTALL_DIR } else { Join-Path $env:LOCALAPPDATA 'GreenhouseControlCenter' }
 $Desktop = if ($env:GCC_DESKTOP_DIR) { $env:GCC_DESKTOP_DIR } else { [Environment]::GetFolderPath('Desktop') }
 $StartMenu = if ($env:GCC_DESKTOP_DIR) { $null } else { Join-Path ([Environment]::GetFolderPath('Programs')) '' }

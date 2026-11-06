@@ -7,7 +7,7 @@
 set -euo pipefail
 
 REPO=unupunct/GREENHOUSE-CONTROL-CENTER
-VERSION="${GCC_VERSION:-0.9.1}"
+VERSION="${GCC_VERSION:-0.9.2}"
 URL="https://github.com/$REPO/releases/download/v$VERSION/greenhouse-control-center-$VERSION.tar.gz"
 
 if [ "$(id -u)" -ne 0 ]; then

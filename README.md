@@ -2,7 +2,7 @@
 
 **Local-first greenhouse monitoring, irrigation and climate automation for Raspberry Pi.** Read sensors over Modbus/RS485, I2C and 1-Wire, run irrigation, ventilation, heating and lighting behind safety interlocks, plan and buy the hardware, and get a personalised installation manual, maintenance schedule, backups and a troubleshooting assistant. Everything runs on your own network; no cloud service is needed. Built around a 10 m x 20 m (200 m²) greenhouse in Romania growing in soil and hydroponics, with prices in RON, but sizing adapts to any greenhouse.
 
-> ⚠️ **Pre-release (v0.9.1): the logic is thoroughly tested, the hardware is not.** 284 automated tests pass against simulated and emulated sensors, outputs and buses, and the program survives hard kills and restarts. But **no real sensor, relay, pump, valve or motor has ever been driven by this code, and it has not run on a Raspberry Pi.** Use it for a supervised pilot, keep independent hardware protections, and read [Production readiness](docs/PRODUCTION_READINESS.md) before letting it control anything unattended. Mains wiring must be done by a qualified electrician.
+> ⚠️ **Pre-release (v0.9.2): the logic is thoroughly tested, the hardware is not.** 284 automated tests pass against simulated and emulated sensors, outputs and buses, and the program survives hard kills and restarts. But **no real sensor, relay, pump, valve or motor has ever been driven by this code, and it has not run on a Raspberry Pi.** Use it for a supervised pilot, keep independent hardware protections, and read [Production readiness](docs/PRODUCTION_READINESS.md) before letting it control anything unattended. Mains wiring must be done by a qualified electrician.
 
 ![Dashboard](docs/screenshots/dashboard.png)
 
@@ -56,9 +56,9 @@ irm https://raw.githubusercontent.com/unupunct/GREENHOUSE-CONTROL-CENTER/main/in
 **On a Raspberry Pi, manually from the release archive (no Node needed).** Prepare the Pi first ([Raspberry Pi setup](docs/RASPBERRY_PI_SETUP.md): OS, SSH, fixed address, **time zone**, I2C/1-Wire), then:
 
 ```bash
-wget https://github.com/unupunct/GREENHOUSE-CONTROL-CENTER/releases/download/v0.9.1/greenhouse-control-center-0.9.1.tar.gz
-tar xzf greenhouse-control-center-0.9.1.tar.gz
-cd greenhouse-control-center-0.9.1
+wget https://github.com/unupunct/GREENHOUSE-CONTROL-CENTER/releases/download/v0.9.2/greenhouse-control-center-0.9.2.tar.gz
+tar xzf greenhouse-control-center-0.9.2.tar.gz
+cd greenhouse-control-center-0.9.2
 sudo ./deploy/install.sh
 ```
 
