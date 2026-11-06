@@ -124,4 +124,4 @@ Mains wiring must be done by a qualified electrician. Heater, pump and actuator 
 
 ## License
 
-No license has been chosen yet; until one is added, all rights are reserved by the author.
+Released under the [MIT License](LICENSE). It is provided as is, without warranty of any kind (see the safety notice above).
